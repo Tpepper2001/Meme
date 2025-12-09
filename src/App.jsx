@@ -1,10 +1,9 @@
-import MemeEditor from './components/MemeEditor';
-import './App.css';
+import AdvancedMemeGenerator from './components/AdvancedMemeGenerator';
 
 function App() {
   return (
     <div className="App">
-      <MemeEditor />
+      <AdvancedMemeGenerator />
     </div>
   );
 }
