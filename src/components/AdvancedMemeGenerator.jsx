@@ -1,74 +1,47 @@
+
 import React, { useEffect, useRef, useState } from "react";
 
 /**
- * AdvancedMemeGenerator — responsive + 50 templates + touch support
- * Drop-in replacement for your previous component.
+ * AdvancedMemeGenerator (iOS Optimized)
+ * 
+ * Fixes for Apple/Mobile:
+ * 1. preventedDefault on touchmove to stop page scrolling while dragging.
+ * 2. -webkit-touch-callout: none to prevent the "Save Image" popup on long press.
+ * 3. try/catch on download to handle Safari CORS security errors.
  */
 export default function AdvancedMemeGenerator() {
   const [image, setImage] = useState(null);
   const [texts, setTexts] = useState([]);
   const [selectedText, setSelectedText] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const canvasRef = useRef(null);
 
-  // 50 templates (use corsproxy prefix like you had)
+  // Using corsproxy.io to bypass CORS issues with external images
   const cors = "https://corsproxy.io/?";
   const memeTemplates = [
     { name: "Drake Hotline", url: cors + "https://i.imgflip.com/30b1gx.jpg" },
     { name: "Distracted BF", url: cors + "https://i.imgflip.com/1ur9b0.jpg" },
     { name: "Two Buttons", url: cors + "https://i.imgflip.com/1g8my4.jpg" },
     { name: "Success Kid", url: cors + "https://i.imgflip.com/1bhk.jpg" },
-    { name: "Roll Safe", url: cors + "https://i.imgflip.com/1h7in3.jpg" },
     { name: "Change My Mind", url: cors + "https://i.imgflip.com/24y43o.jpg" },
-    { name: "Mocking Spongebob", url: cors + "https://i.imgflip.com/1otk96.jpg" },
-    { name: "Gru's Plan", url: cors + "https://i.imgflip.com/26jxvz.jpg" },
-    { name: "Expanding Brain", url: cors + "https://i.imgflip.com/1jwhww.jpg" },
-    { name: "Left Exit 12 Off Ramp", url: cors + "https://i.imgflip.com/22bdq6.jpg" },
-    { name: "Is This a Pigeon?", url: cors + "https://i.imgflip.com/1o00in.jpg" },
-    { name: "Surprised Pikachu", url: cors + "https://i.imgflip.com/2k5h6k.jpg" },
+    { name: "Left Exit 12", url: cors + "https://i.imgflip.com/22bdq6.jpg" },
     { name: "Batman Slapping Robin", url: cors + "https://i.imgflip.com/9ehk.jpg" },
-    { name: "One Does Not Simply", url: cors + "https://i.imgflip.com/1bij.jpg" },
-    { name: "Ancient Aliens", url: cors + "https://i.imgflip.com/26gxvz.jpg" },
-    { name: "The Scroll of Truth", url: cors + "https://i.imgflip.com/3lmzyx.jpg" },
-    { name: "Hide the Pain Harold", url: cors + "https://i.imgflip.com/1bip.jpg" },
-    { name: "Change My Mind 2", url: cors + "https://i.imgflip.com/2gnnjh.jpg" },
-    { name: "Leonardo DiCaprio Cheers", url: cors + "https://i.imgflip.com/39t1o.jpg" },
-    { name: "Arthur Fist", url: cors + "https://i.imgflip.com/2d3al0.jpg" },
-    { name: "Distracted Boyfriend 2", url: cors + "https://i.imgflip.com/4acd5.jpg" },
-    { name: "The Office - No God Please", url: cors + "https://i.imgflip.com/2fm6x.jpg" },
-    { name: "Waiting Skeleton", url: cors + "https://i.imgflip.com/2wifvo.jpg" },
+    { name: "Disaster Girl", url: cors + "https://i.imgflip.com/23ls.jpg" },
+    { name: "Mocking Spongebob", url: cors + "https://i.imgflip.com/1otk96.jpg" },
     { name: "Oprah You Get A", url: cors + "https://i.imgflip.com/1ihzfe.jpg" },
-    { name: "First World Problems", url: cors + "https://i.imgflip.com/1f8odt.jpg" },
-    { name: "Confused Nick Young", url: cors + "https://i.imgflip.com/1g8my4.jpg" },
-    { name: "Panik Kalm Panik", url: cors + "https://i.imgflip.com/3qj6f.jpg" },
-    { name: "Blinking White Guy", url: cors + "https://i.imgflip.com/1y0g6.jpg" },
-    { name: "Gru Laughing", url: cors + "https://i.imgflip.com/3vzej.jpg" },
-    { name: "Bernie I Am Once Again Asking", url: cors + "https://i.imgflip.com/3oevdk.jpg" },
-    { name: "This Is Fine", url: cors + "https://i.imgflip.com/1ihzfe.jpg" },
+    { name: "Bernie I Am Once Again", url: cors + "https://i.imgflip.com/3oevdk.jpg" },
+    { name: "Waiting Skeleton", url: cors + "https://i.imgflip.com/2wifvo.jpg" },
+    { name: "Futurama Fry", url: cors + "https://i.imgflip.com/1bgw.jpg" },
+    { name: "One Does Not Simply", url: cors + "https://i.imgflip.com/1bij.jpg" },
+    { name: "Leonardo DiCaprio Cheers", url: cors + "https://i.imgflip.com/39t1o.jpg" },
     { name: "Woman Yelling at Cat", url: cors + "https://i.imgflip.com/345v97.jpg" },
-    { name: "You vs. The Guy She Told You Not to Worry About", url: cors + "https://i.imgflip.com/2wifvo.jpg" },
-    { name: "Sweating Jordan Peele", url: cors + "https://i.imgflip.com/2wifvo.jpg" },
-    { name: "Captain Picard Facepalm", url: cors + "https://i.imgflip.com/1o00in.jpg" },
-    { name: "Roll Safe 2", url: cors + "https://i.imgflip.com/3lmzyx.jpg" },
-    { name: "Philosoraptor", url: cors + "https://i.imgflip.com/1otk96.jpg" },
-    { name: "Dr Evil 'One Million Dollars'", url: cors + "https://i.imgflip.com/1h7in3.jpg" },
-    { name: "They Had Us in the First Half", url: cors + "https://i.imgflip.com/2wifvo.jpg" },
-    { name: "Laughing Leo", url: cors + "https://i.imgflip.com/39t1o.jpg" },
-    { name: "Stonks", url: cors + "https://i.imgflip.com/327b1.jpg" },
-    { name: "Y U NO", url: cors + "https://i.imgflip.com/1bhk.jpg" },
-    { name: "Imagination Spongebob", url: cors + "https://i.imgflip.com/2k5h6k.jpg" },
-    { name: "Skeptical Baby", url: cors + "https://i.imgflip.com/1bij.jpg" },
-    { name: "Ancient Aliens 2", url: cors + "https://i.imgflip.com/26gxvz.jpg" },
-    { name: "Distracted Boyfriend 3", url: cors + "https://i.imgflip.com/1ur9b0.jpg" },
-    { name: "Minor Mistake Marvin", url: cors + "https://i.imgflip.com/2gnnjh.jpg" },
   ];
 
-  // Helpers
+  // 1. Load Image Helper
   const loadImageFile = (file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      setImage(e.target.result); // base64 DataURL
+      setImage(e.target.result); // Base64 is always safe (no CORS)
       setTexts([]);
       setSelectedText(null);
     };
@@ -77,27 +50,24 @@ export default function AdvancedMemeGenerator() {
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith("image/")) loadImageFile(file);
+    if (file) loadImageFile(file);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDraggingOver(false);
-    const file = e.dataTransfer?.files?.[0];
-    if (file && file.type.startsWith("image/")) loadImageFile(file);
-  };
-
+  // 2. Add Text - Smart positioning based on canvas size
   const addText = () => {
     const canvas = canvasRef.current;
+    const width = canvas ? canvas.width : 500;
+    const height = canvas ? canvas.height : 500;
+    
     const newText = {
       id: Date.now(),
-      content: "YOUR TEXT",
-      x: canvas ? canvas.width / 2 : 300,
-      y: canvas ? canvas.height / 4 : 100,
-      fontSize: 60,
+      content: "TAP TO EDIT",
+      x: width / 2,
+      y: height / 2,
+      fontSize: Math.floor(width * 0.1), // Responsive font size
       color: "#ffffff",
       strokeColor: "#000000",
-      strokeWidth: 5,
+      strokeWidth: 4,
       rotation: 0,
       uppercase: true,
     };
@@ -111,10 +81,10 @@ export default function AdvancedMemeGenerator() {
 
   const deleteText = (id) => {
     setTexts((p) => p.filter((t) => t.id !== id));
-    if (selectedText === id) setSelectedText(null);
+    setSelectedText(null);
   };
 
-  // Draw image + texts to canvas. Set crossOrigin only for external http URLs.
+  // 3. Render Canvas
   useEffect(() => {
     if (!image || !canvasRef.current) return;
 
@@ -122,111 +92,166 @@ export default function AdvancedMemeGenerator() {
     const ctx = canvas.getContext("2d");
     const img = new Image();
 
+    // Critical for Safari CORS handling
     if (typeof image === "string" && image.startsWith("http")) {
       img.crossOrigin = "anonymous";
     }
 
     img.onload = () => {
-      // Set canvas internal pixel size for crisp rendering
+      // Set resolution to actual image size
       canvas.width = img.width;
       canvas.height = img.height;
-
-      // Make canvas visually responsive: scale to container width (CSS)
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
+      
+      // CSS handles the visual sizing (width: 100%)
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
 
+      // Draw Texts
       for (const text of texts) {
         ctx.save();
         ctx.translate(text.x, text.y);
         ctx.rotate((text.rotation * Math.PI) / 180);
         ctx.font = `bold ${text.fontSize}px Impact, Arial Black, sans-serif`;
-        ctx.fillStyle = text.color;
-        ctx.strokeStyle = text.strokeColor;
-        ctx.lineWidth = text.strokeWidth;
+        ctx.lineJoin = "round"; // Smoother corners on stroke
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        const display = text.uppercase ? text.content.toUpperCase() : text.content;
-        if (text.strokeWidth > 0) ctx.strokeText(display, 0, 0);
-        ctx.fillText(display, 0, 0);
+        // Stroke
+        if (text.strokeWidth > 0) {
+          ctx.strokeStyle = text.strokeColor;
+          ctx.lineWidth = text.strokeWidth;
+          ctx.strokeText(text.uppercase ? text.content.toUpperCase() : text.content, 0, 0);
+        }
+
+        // Fill
+        ctx.fillStyle = text.color;
+        ctx.fillText(text.uppercase ? text.content.toUpperCase() : text.content, 0, 0);
+        
+        // Highlight selection
+        if (selectedText === text.id) {
+            ctx.strokeStyle = "rgba(0, 255, 255, 0.5)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(
+                -ctx.measureText(text.content).width / 2 - 10,
+                -text.fontSize / 2 - 5,
+                ctx.measureText(text.content).width + 20,
+                text.fontSize + 10
+            );
+        }
+        
         ctx.restore();
       }
     };
+    
+    // Handle image load error (often CORS)
+    img.onerror = () => {
+        alert("Failed to load image template due to browser privacy settings. Please try uploading a file from your device instead.");
+    };
 
     img.src = image;
-  }, [image, texts]);
+  }, [image, texts, selectedText]);
 
-  // Click to select (works with CSS scaled canvas)
-  const getCanvasPointerPos = (clientX, clientY) => {
+  // 4. Coordinate Math (Pointer -> Canvas)
+  const getCanvasCoords = (clientX, clientY) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-    return { x, y };
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
   };
 
-  const handleCanvasClick = (e) => {
-    const p = getCanvasPointerPos(e.clientX, e.clientY);
-    if (!p) return;
-    const clicked = texts.find((t) => Math.hypot(t.x - p.x, t.y - p.y) < t.fontSize * 1.2);
-    setSelectedText(clicked ? clicked.id : null);
-  };
+  // 5. iOS Touch Event Listeners (Non-Passive)
+  // We use this useEffect because React's onTouchMove is "passive" by default,
+  // which allows scrolling. We need { passive: false } to stop scrolling.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  // Mouse handlers
-  const handleMouseDown = (e) => {
-    const p = getCanvasPointerPos(e.clientX, e.clientY);
+    const preventDefault = (e) => {
+        // Only prevent scrolling if we are dragging text
+        if (dragging) e.preventDefault();
+    }
+
+    // Attach non-passive listener
+    canvas.addEventListener('touchmove', preventDefault, { passive: false });
+    return () => canvas.removeEventListener('touchmove', preventDefault);
+  }, [dragging]);
+
+  // Unified Start Handler (Mouse + Touch)
+  const handleStart = (clientX, clientY) => {
+    const p = getCanvasCoords(clientX, clientY);
     if (!p) return;
-    const clicked = texts.find((t) => Math.hypot(t.x - p.x, t.y - p.y) < t.fontSize * 1.2);
+
+    // Hit detection: Check distance to text center
+    // Increased hit radius for fat fingers (fontSize * 1.5)
+    const clicked = texts.slice().reverse().find(t => { // reverse to check top-most text first
+        const dist = Math.hypot(t.x - p.x, t.y - p.y);
+        return dist < (t.fontSize * 1.5) + 20; 
+    });
+
     if (clicked) {
       setSelectedText(clicked.id);
       setDragging(true);
+    } else {
+      setSelectedText(null);
     }
   };
-  const handleMouseUp = () => setDragging(false);
-  const handleMouseMove = (e) => {
+
+  const handleMove = (clientX, clientY) => {
     if (!dragging || !selectedText) return;
-    const p = getCanvasPointerPos(e.clientX, e.clientY);
+    const p = getCanvasCoords(clientX, clientY);
     if (!p) return;
     updateText(selectedText, { x: p.x, y: p.y });
   };
 
-  // Touch handlers for mobile
-  const handleTouchStart = (e) => {
-    if (!e.touches?.length) return;
-    const t0 = e.touches[0];
-    const p = getCanvasPointerPos(t0.clientX, t0.clientY);
-    if (!p) return;
-    const clicked = texts.find((t) => Math.hypot(t.x - p.x, t.y - p.y) < t.fontSize * 1.2);
-    if (clicked) {
-      setSelectedText(clicked.id);
-      setDragging(true);
-      e.preventDefault();
-    }
+  const handleEnd = () => {
+    setDragging(false);
   };
-  const handleTouchMove = (e) => {
-    if (!dragging || !selectedText || !e.touches?.length) return;
-    const t0 = e.touches[0];
-    const p = getCanvasPointerPos(t0.clientX, t0.clientY);
-    if (!p) return;
-    updateText(selectedText, { x: p.x, y: p.y });
-    e.preventDefault();
+
+  // React Event Wrappers
+  const onMouseDown = (e) => handleStart(e.clientX, e.clientY);
+  const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+  const onMouseUp = () => handleEnd();
+  
+  const onTouchStart = (e) => {
+      // Prevent default is crucial here for iOS
+      // But we call handleStart first to see if we hit text
+      if (e.touches.length > 0) {
+        handleStart(e.touches[0].clientX, e.touches[0].clientY);
+      }
   };
-  const handleTouchEnd = () => setDragging(false);
+  const onTouchMove = (e) => {
+      if (dragging && e.touches.length > 0) {
+          handleMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+  };
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // Create a temporary link to download the current canvas image
-    const link = document.createElement("a");
-    link.download = `meme-${Date.now()}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    
+    try {
+        // Deselect text before saving so the selection box doesn't appear
+        setSelectedText(null);
+        
+        // Slight delay to allow state update to re-render canvas without selection box
+        setTimeout(() => {
+            const dataUrl = canvas.toDataURL("image/png");
+            const link = document.createElement("a");
+            link.download = `meme-${Date.now()}.png`;
+            link.href = dataUrl;
+            link.click();
+        }, 50);
+    } catch (err) {
+        alert("Security Error: Safari cannot download this image directly because of 'Tainted Canvas' CORS rules.\n\nTip: Take a screenshot instead!");
+        console.error(err);
+    }
   };
 
   const selectedTextObj = texts.find((t) => t.id === selectedText);
@@ -235,195 +260,224 @@ export default function AdvancedMemeGenerator() {
     <div className="amg-root">
       <h1 className="amg-title">Meme Generator</h1>
 
-      <div className="amg-top">
-        <div
-          className={`amg-drop ${isDraggingOver ? "amg-drop--over" : ""}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDraggingOver(true);
-          }}
-          onDragLeave={() => setIsDraggingOver(false)}
-          onDrop={handleDrop}
-          onClick={() => document.getElementById("amg-file")?.click()}
-        >
-          <div className="amg-drop-icon">📤</div>
-          <p>Drop image here or click to upload</p>
-          <input id="amg-file" type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
-        </div>
+      {!image ? (
+        <div className="amg-start-screen">
+            <div className="amg-upload-box" onClick={() => document.getElementById("file-input").click()}>
+                <span style={{fontSize: "3rem"}}>📂</span>
+                <p><b>Tap to upload image</b><br/>or choose a template below</p>
+                <input id="file-input" type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+            </div>
 
-        <div className="amg-templates">
-          <h3>Templates</h3>
-          <div className="amg-template-grid">
-            {memeTemplates.map((t) => (
-              <button key={t.name} className="amg-template-btn" onClick={() => setImage(t.url)}>
-                {t.name}
-              </button>
-            ))}
-          </div>
+            <div className="amg-grid-title">Popular Templates</div>
+            <div className="amg-template-grid">
+                {memeTemplates.map((t) => (
+                    <div key={t.name} className="amg-card" onClick={() => setImage(t.url)}>
+                        <img src={t.url} alt={t.name} loading="lazy" />
+                        <span>{t.name}</span>
+                    </div>
+                ))}
+            </div>
         </div>
-      </div>
-
-      {image && (
+      ) : (
         <div className="amg-editor">
-          <div className="amg-controls">
-            <button className="amg-btn amg-btn--accent" onClick={addText}>
-              + Add Text
-            </button>
-
-            {selectedTextObj && (
-              <div className="amg-panel">
-                <input
-                  className="amg-input"
-                  type="text"
-                  value={selectedTextObj.content}
-                  onChange={(e) => updateText(selectedText, { content: e.target.value })}
-                />
-
-                <label className="amg-label">Size: {selectedTextObj.fontSize}px</label>
-                <input
-                  type="range"
-                  min="20"
-                  max="150"
-                  value={selectedTextObj.fontSize}
-                  onChange={(e) => updateText(selectedText, { fontSize: +e.target.value })}
-                />
-
-                <label className="amg-label">Outline: {selectedTextObj.strokeWidth}px</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="15"
-                  value={selectedTextObj.strokeWidth}
-                  onChange={(e) => updateText(selectedText, { strokeWidth: +e.target.value })}
-                />
-
-                <div className="amg-color-row">
-                  <label>
-                    Fill
-                    <input type="color" value={selectedTextObj.color} onChange={(e) => updateText(selectedText, { color: e.target.value })} />
-                  </label>
-                  <label>
-                    Stroke
-                    <input type="color" value={selectedTextObj.strokeColor} onChange={(e) => updateText(selectedText, { strokeColor: e.target.value })} />
-                  </label>
-                </div>
-
-                <label className="amg-label">Rotate: {selectedTextObj.rotation}°</label>
-                <input type="range" min="-180" max="180" value={selectedTextObj.rotation} onChange={(e) => updateText(selectedText, { rotation: +e.target.value })} />
-
-                <label className="amg-checkbox">
-                  <input type="checkbox" checked={selectedTextObj.uppercase} onChange={(e) => updateText(selectedText, { uppercase: e.target.checked })} />
-                  UPPERCASE
-                </label>
-
-                <button className="amg-btn amg-btn--danger" onClick={() => deleteText(selectedText)}>
-                  Delete Text
-                </button>
-              </div>
-            )}
-
-            <button className="amg-btn amg-btn--primary" onClick={handleDownload}>
-              Download Meme
-            </button>
-          </div>
-
-          <div className="amg-canvas-wrap">
-            <canvas
+          
+          <div className="amg-canvas-wrapper">
+             <canvas
               ref={canvasRef}
               className="amg-canvas"
-              onClick={handleCanvasClick}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              // accessibility
-              role="img"
-            />
-            <div className="amg-hint">Tap text to select • drag to move (touch & mouse supported)</div>
+              // Mouse Events
+              onMouseDown={onMouseDown}
+              onMouseMove={onMouseMove}
+              onMouseUp={onMouseUp}
+              onMouseLeave={onMouseUp}
+              // Touch Events
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={handleEnd}
+             />
+             <div className="amg-hint">Drag text to move • Tap text to edit</div>
+          </div>
+
+          <div className="amg-controls">
+            <div className="amg-main-actions">
+                <button className="amg-btn amg-btn-add" onClick={addText}>+ Text</button>
+                <button className="amg-btn amg-btn-dl" onClick={handleDownload}>Download</button>
+                <button className="amg-btn amg-btn-reset" onClick={() => setImage(null)}>Reset</button>
+            </div>
+
+            {selectedTextObj && (
+              <div className="amg-text-options">
+                <input
+                    type="text"
+                    className="amg-text-input"
+                    value={selectedTextObj.content}
+                    onChange={(e) => updateText(selectedText, { content: e.target.value })}
+                    autoFocus
+                />
+                
+                <div className="amg-sliders">
+                    <label>
+                        Size
+                        <input type="range" min="10" max="200" value={selectedTextObj.fontSize} 
+                            onChange={(e) => updateText(selectedText, { fontSize: +e.target.value })} />
+                    </label>
+                    <label>
+                        Rotate
+                        <input type="range" min="-180" max="180" value={selectedTextObj.rotation} 
+                            onChange={(e) => updateText(selectedText, { rotation: +e.target.value })} />
+                    </label>
+                </div>
+
+                <div className="amg-colors">
+                    <input type="color" value={selectedTextObj.color} onChange={(e) => updateText(selectedText, { color: e.target.value })} />
+                    <input type="color" value={selectedTextObj.strokeColor} onChange={(e) => updateText(selectedText, { strokeColor: e.target.value })} />
+                    <button className="amg-btn-del" onClick={() => deleteText(selectedText)}>Remove</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Minimal responsive styling */}
       <style>{`
+        /* Reset & Base */
+        * { box-sizing: border-box; }
         .amg-root {
-          max-width: 1200px;
-          margin: 20px auto;
-          padding: 16px;
-          font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-          color: #0f172a;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+          color: #333;
         }
-        .amg-title { text-align: center; font-size: 2.2rem; margin-bottom: 16px; }
-        .amg-top {
-          display: grid;
-          grid-template-columns: 1fr 420px;
-          gap: 16px;
-          margin-bottom: 20px;
+        .amg-title { text-align: center; margin-bottom: 20px; font-weight: 800; }
+
+        /* Start Screen */
+        .amg-upload-box {
+            background: #f0f4f8;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 30px;
+            transition: 0.2s;
         }
-        .amg-drop {
-          background: white;
-          border-radius: 12px;
-          border: 3px dashed #94a3b8;
-          padding: 28px;
-          text-align: center;
-          cursor: pointer;
-          box-shadow: 0 8px 24px rgba(2,6,23,0.06);
+        .amg-upload-box:active { background: #e2e8f0; }
+        
+        .amg-grid-title { font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+        .amg-template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
         }
-        .amg-drop--over { background: #eef2ff; border-color: #2563eb; }
-        .amg-drop-icon { font-size: 48px; margin-bottom: 6px; }
-        .amg-templates { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 8px 24px rgba(2,6,23,0.06); }
-        .amg-templates h3 { margin: 0 0 10px 0; }
-        .amg-template-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 420px; overflow:auto; }
-        .amg-template-btn {
-          padding: 10px;
-          border-radius: 8px;
-          border: 1px solid #e6eef8;
-          background: #f8fafc;
-          cursor: pointer;
-          text-align: left;
-          font-weight: 600;
+        .amg-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            background: #fff;
+        }
+        .amg-card img { width: 100%; height: 100px; object-fit: cover; display: block; }
+        .amg-card span { display: block; padding: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Editor Layout */
+        .amg-editor { display: flex; flex-direction: column; gap: 20px; }
+        
+        .amg-canvas-wrapper {
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            background: #eee;
+            /* CRITICAL FOR APPLE TOUCH */
+            touch-action: none; 
         }
 
-        .amg-editor {
-          display: grid;
-          grid-template-columns: 360px 1fr;
-          gap: 18px;
+        .amg-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: crosshair;
+            /* CRITICAL: Prevents iOS context menu on long press */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        .amg-controls { display:flex; flex-direction: column; gap: 12px; }
-        .amg-btn { padding: 12px; border-radius: 10px; border: none; cursor:pointer; font-weight:700; }
-        .amg-btn--accent { background:#10b981; color:white; }
-        .amg-btn--primary { background:#8b5cf6; color:white; }
-        .amg-btn--danger { background:#ef4444; color:white; }
-        .amg-panel { background: white; padding: 12px; border-radius: 10px; box-shadow: 0 8px 18px rgba(2,6,23,0.06); display:flex; flex-direction:column; gap:10px; }
-        .amg-input { padding:8px; border-radius:8px; border:1px solid #e6eef8; font-size: 14px; }
-        .amg-label { font-size: 13px; margin-top: 4px; color: #334155; }
 
-        .amg-color-row { display:flex; gap:12px; align-items:center; }
-        .amg-checkbox { display:flex; align-items:center; gap:8px; font-size: 14px; }
-
-        .amg-canvas-wrap { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 8px 30px rgba(2,6,23,0.08); display:flex; flex-direction:column; gap:10px; align-items:stretch; }
-        .amg-canvas { width:100%; height:auto; border-radius:8px; display:block; touch-action: none; } /* touch-action none prevents page scrolling while dragging on canvas */
-        .amg-hint { font-size: 13px; color: #64748b; text-align: center; }
-
-        /* Responsive adjustments */
-        @media (max-width: 980px) {
-          .amg-top { grid-template-columns: 1fr; }
-          .amg-editor { grid-template-columns: 1fr; }
-          .amg-templates { order: 2; }
-          .amg-drop { order: 1; }
-          .amg-template-grid { grid-template-columns: repeat(3, 1fr); }
-          .amg-controls { order: 2; }
+        .amg-hint {
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+            background: #f9f9f9;
+            padding: 5px;
+            border-top: 1px solid #ddd;
         }
-        @media (max-width: 520px) {
-          .amg-template-grid { grid-template-columns: repeat(2, 1fr); }
-          .amg-template-btn { font-size: 13px; padding:8px; }
-          .amg-title { font-size: 1.6rem; }
-          .amg-drop { padding: 18px; }
+
+        /* Controls */
+        .amg-controls {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 15px;
+        }
+        .amg-main-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .amg-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .amg-btn-add { background: #3b82f6; color: white; }
+        .amg-btn-dl { background: #10b981; color: white; }
+        .amg-btn-reset { background: #ef4444; color: white; }
+
+        .amg-text-options {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .amg-text-input {
+            padding: 10px;
+            font-size: 1.1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+        .amg-sliders { display: flex; gap: 15px; justify-content: space-between; }
+        .amg-sliders label { display: flex; flex-direction: column; font-size: 0.8rem; width: 100%; }
+        
+        .amg-colors { display: flex; align-items: center; gap: 10px; }
+        .amg-colors input[type="color"] { border: none; width: 40px; height: 40px; padding: 0; background: none; }
+        .amg-btn-del {
+            margin-left: auto;
+            background: #fff;
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        @media (min-width: 768px) {
+            .amg-editor { flex-direction: row; align-items: flex-start; }
+            .amg-canvas-wrapper { flex: 2; }
+            .amg-controls { flex: 1; position: sticky; top: 20px; }
         }
       `}</style>
     </div>
   );
-     }
+}
