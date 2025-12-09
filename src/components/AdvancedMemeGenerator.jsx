@@ -1,285 +1,221 @@
 import React, { useEffect, useRef, useState } from "react";
 
 /**
- * UltimateMemeGenerator
- * Features:
- * 1. Pan & Zoom Cropper
- * 2. Manual Background Eraser (Magic Eraser)
- * 3. Text Editor (Move, Rotate, Resize)
- * 4. Native Sharing (WhatsApp/Twitter/etc)
- * 5. iOS/Mobile Optimized (No scrolling while editing)
+ * 🎨 MemeStudio Pro
+ * A professional, zero-dependency React meme generator.
+ * Features: Deep Etch (Eraser), Filters, Rich Text, Smart Cropping, Native Sharing.
  */
-export default function UltimateMemeGenerator() {
-  // Stages: 'upload' -> 'crop' -> 'edit'
-  const [stage, setStage] = useState("upload");
-  
-  // Data
-  const [originalImage, setOriginalImage] = useState(null); // The raw file
-  const [editorImage, setEditorImage] = useState(null); // The cropped/erased version
-  const [texts, setTexts] = useState([]);
-  const [selectedText, setSelectedText] = useState(null);
 
-  // Tools
-  const [isEraserActive, setIsEraserActive] = useState(false);
-  const [brushSize, setBrushSize] = useState(30);
+// --- ASSETS & CONSTANTS ---
+const CORS_PROXY = "https://corsproxy.io/?";
+const TEMPLATES = [
+  { id: 't1', name: "Drake Hotline", url: "https://i.imgflip.com/30b1gx.jpg" },
+  { id: 't2', name: "Distracted BF", url: "https://i.imgflip.com/1ur9b0.jpg" },
+  { id: 't3', name: "Two Buttons", url: "https://i.imgflip.com/1g8my4.jpg" },
+  { id: 't4', name: "Batman Slapping", url: "https://i.imgflip.com/9ehk.jpg" },
+  { id: 't5', name: "Change My Mind", url: "https://i.imgflip.com/24y43o.jpg" },
+  { id: 't6', name: "Disaster Girl", url: "https://i.imgflip.com/23ls.jpg" },
+  { id: 't7', name: "Left Exit 12", url: "https://i.imgflip.com/22bdq6.jpg" },
+  { id: 't8', name: "Mocking Spongebob", url: "https://i.imgflip.com/1otk96.jpg" },
+  { id: 't9', name: "Bernie Support", url: "https://i.imgflip.com/3oevdk.jpg" },
+  { id: 't10', name: "Oprah GiveAway", url: "https://i.imgflip.com/1ihzfe.jpg" },
+  { id: 't11', name: "Success Kid", url: "https://i.imgflip.com/1bhk.jpg" },
+  { id: 't12', name: "Evil Kermit", url: "https://i.imgflip.com/1e7ql7.jpg" },
+  { id: 't13', name: "Waiting Skeleton", url: "https://i.imgflip.com/2wifvo.jpg" },
+  { id: 't14', name: "Always Has Been", url: "https://i.imgflip.com/46e43q.jpg" },
+  { id: 't15', name: "Buff Doge", url: "https://i.imgflip.com/43a45p.jpg" },
+  { id: 't16', name: "Trade Offer", url: "https://i.imgflip.com/54hjww.jpg" },
+  { id: 't17', name: "Leonardo Toast", url: "https://i.imgflip.com/39t1o.jpg" },
+  { id: 't18', name: "Sad Pablo", url: "https://i.imgflip.com/1c1uej.jpg" },
+  { id: 't19', name: "Woman Yelling Cat", url: "https://i.imgflip.com/345v97.jpg" },
+  { id: 't20', name: "Think About It", url: "https://i.imgflip.com/1h7in3.jpg" },
+  { id: 't21', name: "Markiplier E", url: "https://i.imgflip.com/26am.jpg" },
+  { id: 't22', name: "Uno Draw 25", url: "https://i.imgflip.com/3lmzyx.jpg" },
+  { id: 't23', name: "Clown", url: "https://i.imgflip.com/38el31.jpg" },
+  { id: 't24', name: "This Is Fine", url: "https://i.imgflip.com/wxica.jpg" },
+];
+
+const FONTS = ["Impact", "Arial", "Courier New", "Georgia", "Verdana", "Brush Script MT"];
+
+export default function MemeStudio() {
+  // --- STATE ---
+  const [stage, setStage] = useState("home"); // home | crop | edit
+  const [activeTab, setActiveTab] = useState("text"); // text | image | draw
+  
+  // Image Data
+  const [originalImg, setOriginalImg] = useState(null); // The raw loaded file
+  const [editorImg, setEditorImg] = useState(null); // The processed background (cropped/erased)
   
   // Crop State
   const [cropScale, setCropScale] = useState(1);
   const [cropPos, setCropPos] = useState({ x: 0, y: 0 });
+  const [aspectRatio, setAspectRatio] = useState(1); // 1 = square
+
+  // Edit State
+  const [texts, setTexts] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [filters, setFilters] = useState({ brightness: 100, contrast: 100, grayscale: 0 });
+  const [brushSize, setBrushSize] = useState(30);
+  const [isErasing, setIsErasing] = useState(false);
 
   // Refs
   const canvasRef = useRef(null);
-  const cropCanvasRef = useRef(null);
-  
-  // --- CONSTANTS ---
-  const cors = "https://corsproxy.io/?";
-  const templates = [
-    { name: "Drake", url: cors + "https://i.imgflip.com/30b1gx.jpg" },
-    { name: "Distracted BF", url: cors + "https://i.imgflip.com/1ur9b0.jpg" },
-    { name: "Two Buttons", url: cors + "https://i.imgflip.com/1g8my4.jpg" },
-    { name: "Batman Slap", url: cors + "https://i.imgflip.com/9ehk.jpg" },
-    { name: "Change My Mind", url: cors + "https://i.imgflip.com/24y43o.jpg" },
-    { name: "Disaster Girl", url: cors + "https://i.imgflip.com/23ls.jpg" },
-  ];
+  const cropRef = useRef(null);
+  const dragRef = useRef({ active: false, x: 0, y: 0 });
 
-  // --- HELPER: Load Image ---
-  const handleFile = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setOriginalImage(e.target.result);
-      setStage("crop");
-      setCropScale(1);
-      setCropPos({ x: 0, y: 0 });
-    };
-    reader.readAsDataURL(file);
+  // --- ACTIONS ---
+
+  const handleUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setOriginalImg(ev.target.result);
+        setStage("crop");
+        setCropScale(1); 
+        setCropPos({ x: 0, y: 0 });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleTemplate = (url) => {
-    // For templates, we skip crop and go straight to edit
-    // But we need to convert URL to base64 via canvas to avoid tainting later
+  const loadTemplate = (url) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-        const c = document.createElement('canvas');
+        const c = document.createElement("canvas");
         c.width = img.width;
         c.height = img.height;
-        const ctx = c.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        setEditorImage(c.toDataURL());
+        c.getContext("2d").drawImage(img, 0, 0);
+        setEditorImg(c.toDataURL());
         setStage("edit");
         setTexts([]);
+        setFilters({ brightness: 100, contrast: 100, grayscale: 0 });
     };
-    img.src = url;
+    img.src = CORS_PROXY + url;
   };
 
-  // =========================================
-  // STAGE 1: CROPPER (Pan & Zoom Logic)
-  // =========================================
-  const applyCrop = () => {
-    const c = cropCanvasRef.current;
-    // Snapshot the current crop view
-    setEditorImage(c.toDataURL());
-    setStage("edit");
-    setTexts([]);
-  };
-
-  // Logic to draw the crop canvas
-  useEffect(() => {
-    if (stage !== "crop" || !originalImage || !cropCanvasRef.current) return;
-    const canvas = cropCanvasRef.current;
-    const ctx = canvas.getContext("2d");
+  // --- CROP ENGINE ---
+  const renderCrop = () => {
+    const c = cropRef.current;
+    if (!c || !originalImg) return;
+    const ctx = c.getContext("2d");
     const img = new Image();
     img.onload = () => {
-        // We fix the canvas to a square-ish aspect ratio for simplicity, 
-        // or match screen width. Let's do a 1:1 or 4:3 crop window.
-        canvas.width = 600;
-        canvas.height = 600;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Fixed canvas size for UI
+        c.width = 600; 
+        c.height = 600 / aspectRatio; // Adjust height based on aspect ratio
         
-        // Draw image with pan (cropPos) and zoom (cropScale)
-        // Center point math
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
+        ctx.clearRect(0, 0, c.width, c.height);
+        
+        // Background Fill
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, c.width, c.height);
 
+        // Draw Image Transformed
         ctx.save();
-        ctx.translate(centerX, centerY);
+        ctx.translate(c.width / 2, c.height / 2);
         ctx.scale(cropScale, cropScale);
-        ctx.translate(cropPos.x, cropPos.y); // User moves image
+        ctx.translate(cropPos.x, cropPos.y);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.restore();
+        
+        // Grid Overlay
+        ctx.strokeStyle = "rgba(255,255,255,0.3)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(c.width * 0.33, 0); ctx.lineTo(c.width * 0.33, c.height);
+        ctx.moveTo(c.width * 0.66, 0); ctx.lineTo(c.width * 0.66, c.height);
+        ctx.moveTo(0, c.height * 0.33); ctx.lineTo(c.width, c.height * 0.33);
+        ctx.moveTo(0, c.height * 0.66); ctx.lineTo(c.width, c.height * 0.66);
+        ctx.stroke();
     };
-    img.src = originalImage;
-  }, [originalImage, cropScale, cropPos, stage]);
-
-  // --- Touch Logic for Cropper ---
-  const cropDragRef = useRef({ isDown: false, lx: 0, ly: 0 });
-  
-  const handleCropStart = (x, y) => {
-    cropDragRef.current = { isDown: true, lx: x, ly: y };
+    img.src = originalImg;
   };
-  const handleCropMove = (x, y) => {
-    if (!cropDragRef.current.isDown) return;
-    const dx = x - cropDragRef.current.lx;
-    const dy = y - cropDragRef.current.ly;
-    // Adjust pos (divided by scale to keep movement 1:1 with finger)
-    setCropPos(prev => ({ x: prev.x + (dx / cropScale), y: prev.y + (dy / cropScale) }));
-    cropDragRef.current.lx = x;
-    cropDragRef.current.ly = y;
+  
+  useEffect(renderCrop, [originalImg, cropScale, cropPos, aspectRatio, stage]);
+
+  const saveCrop = () => {
+    const c = cropRef.current;
+    setEditorImg(c.toDataURL());
+    setStage("edit");
+    setTexts([]);
+    setFilters({ brightness: 100, contrast: 100, grayscale: 0 });
   };
 
-  // =========================================
-  // STAGE 2: EDITOR (Text & Eraser)
-  // =========================================
-  
-  // 1. Draw the Editor Canvas
-  const drawEditor = () => {
-    if (stage !== "edit" || !editorImage || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    
-    // We need to keep the "erased" parts erased.
-    // The trick: We draw the BASE image (with erased holes), then draw Text on top.
-    // To support "Undo" of erasing, you'd need history. For now, we commit erasures to the base image?
-    // BETTER APPROACH: 
-    // The "editorImage" state holds the base pixel data.
-    // When we erase, we modify "editorImage".
-    // When we add text, we draw editorImage + Text.
-    
+  // --- EDIT ENGINE ---
+  const renderEditor = () => {
+    const c = canvasRef.current;
+    if (!c || !editorImg) return;
+    const ctx = c.getContext("2d");
     const img = new Image();
     img.onload = () => {
-        if (canvas.width !== img.width) {
-            canvas.width = img.width;
-            canvas.height = img.height;
+        if (c.width !== img.width) {
+            c.width = img.width;
+            c.height = img.height;
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, c.width, c.height);
+        
+        // 1. Apply Filters
+        ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) grayscale(${filters.grayscale}%)`;
+        
+        // 2. Draw Background
         ctx.drawImage(img, 0, 0);
+        ctx.filter = "none"; // Reset for text
 
-        // Draw Texts
-        texts.forEach(text => {
+        // 3. Draw Texts
+        texts.forEach(t => {
             ctx.save();
-            ctx.translate(text.x, text.y);
-            ctx.rotate((text.rotation * Math.PI) / 180);
-            ctx.font = `bold ${text.fontSize}px Impact, Arial Black, sans-serif`;
+            ctx.translate(t.x, t.y);
+            ctx.rotate((t.rotation * Math.PI) / 180);
+            ctx.font = `bold ${t.fontSize}px "${t.fontFamily}"`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.lineJoin = "round";
-
-            if (text.strokeWidth > 0) {
-                ctx.strokeStyle = text.strokeColor;
-                ctx.lineWidth = text.strokeWidth;
-                ctx.strokeText(text.uppercase ? text.content.toUpperCase() : text.content, 0, 0);
+            
+            if (t.shadow) {
+                ctx.shadowColor = "rgba(0,0,0,0.8)";
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
             }
-            ctx.fillStyle = text.color;
-            ctx.fillText(text.uppercase ? text.content.toUpperCase() : text.content, 0, 0);
+
+            if (t.strokeWidth > 0) {
+                ctx.strokeStyle = t.strokeColor;
+                ctx.lineWidth = t.strokeWidth;
+                ctx.strokeText(t.uppercase ? t.text.toUpperCase() : t.text, 0, 0);
+            }
+            
+            ctx.fillStyle = t.color;
+            ctx.fillText(t.uppercase ? t.text.toUpperCase() : t.text, 0, 0);
             
             // Selection Box
-            if (selectedText === text.id && !isEraserActive) {
-                ctx.strokeStyle = "#00ffcc";
+            if (selectedId === t.id && !isErasing) {
+                const m = ctx.measureText(t.text);
+                const w = m.width + 20;
+                const h = t.fontSize + 10;
+                ctx.shadowColor = "transparent";
+                ctx.strokeStyle = "#3b82f6";
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 5]);
-                const m = ctx.measureText(text.content);
-                ctx.strokeRect(
-                    -m.width/2 - 10, -text.fontSize/2 - 5,
-                    m.width + 20, text.fontSize + 10
-                );
+                ctx.strokeRect(-w/2, -h/2, w, h);
             }
             ctx.restore();
         });
     };
-    img.src = editorImage;
+    img.src = editorImg;
   };
 
-  useEffect(drawEditor, [editorImage, texts, selectedText, isEraserActive, stage]);
+  useEffect(renderEditor, [editorImg, texts, selectedId, filters, stage]);
 
-  // 2. Text Logic
-  const addText = () => {
-    const canvas = canvasRef.current;
-    const newText = {
-      id: Date.now(),
-      content: "EDIT ME",
-      x: canvas ? canvas.width / 2 : 300,
-      y: canvas ? canvas.height / 2 : 300,
-      fontSize: 50,
-      color: "#ffffff",
-      strokeColor: "#000000",
-      strokeWidth: 4,
-      rotation: 0,
-      uppercase: true,
-    };
-    setIsEraserActive(false); // Switch off eraser
-    setTexts([...texts, newText]);
-    setSelectedText(newText.id);
-  };
-  
-  const updateText = (id, obj) => {
-    setTexts(prev => prev.map(t => t.id === id ? { ...t, ...obj } : t));
-  };
-
-  // 3. Eraser Logic (Modifies the base image permanently)
-  const lastEraserPos = useRef(null);
-
-  const handleEraserMove = (x, y) => {
-    if (!lastEraserPos.current || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    
-    // Create a temp canvas to draw the eraser stroke, then save it back to editorImage
-    // Actually, we can draw directly on the canvas with 'destination-out', 
-    // BUT we must then save that canvas state back to `editorImage` so it persists under the text.
-    
-    // Optimized approach:
-    // 1. Draw stroke on canvas
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.moveTo(lastEraserPos.current.x, lastEraserPos.current.y);
-    ctx.lineTo(x, y);
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over'; // Reset
-    
-    lastEraserPos.current = { x, y };
-  };
-
-  const saveEraserStroke = () => {
-    // When lifting finger, save the canvas (without text) as the new background
-    // This is tricky because the canvas currently has text on it.
-    // FIX: We need to redraw ONLY image, erase, then save, then redraw text.
-    // For simplicity in this single-file demo, we accept that erasing might clip text if we are not careful?
-    // No, we must do it right.
-    
-    const canvas = canvasRef.current;
-    // 1. Clear canvas
-    const ctx = canvas.getContext('2d');
-    
-    // We already erased the canvas content in handleEraserMove. 
-    // But that content included the Text. We don't want to burn the text into the background.
-    // So... Eraser Mode should probably hide text while drawing?
-    // Let's go with: While erasing, text is hidden.
-    
-    setEditorImage(canvas.toDataURL()); // Save the erased image
-    lastEraserPos.current = null;
-  };
-
-
-  // 4. Input Handler (Unified)
-  const getCoords = (e) => {
-    const canvas = e.target;
+  // --- INTERACTION HANDLERS ---
+  const getPointerPos = (e, canvas) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    
-    let clientX = e.clientX;
-    let clientY = e.clientY;
-    
-    if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    }
-    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return {
         x: (clientX - rect.left) * scaleX,
         y: (clientY - rect.top) * scaleY,
@@ -289,255 +225,412 @@ export default function UltimateMemeGenerator() {
   };
 
   const handleStart = (e) => {
-    if (stage === 'crop') {
-        const { rawX, rawY } = getCoords(e);
-        handleCropStart(rawX, rawY);
+    if (stage === "crop") {
+        const { rawX, rawY } = getPointerPos(e, cropRef.current);
+        dragRef.current = { active: true, lx: rawX, ly: rawY };
         return;
     }
     
-    const { x, y } = getCoords(e);
-
-    if (isEraserActive) {
-        lastEraserPos.current = { x, y };
-        // Hide texts temporarily while erasing? 
-        // For this demo, we just rely on the user avoiding text.
+    if (isErasing) {
+        const { x, y } = getPointerPos(e, canvasRef.current);
+        dragRef.current = { active: true, lx: x, ly: y };
+        handleEraseMove(x, y); // Erase on tap
         return;
     }
 
-    // Hit detection for text
-    const clicked = texts.slice().reverse().find(t => Math.hypot(t.x - x, t.y - y) < t.fontSize + 10);
+    const { x, y } = getPointerPos(e, canvasRef.current);
+    // Text Hit Detection
+    const clicked = texts.slice().reverse().find(t => Math.hypot(t.x - x, t.y - y) < t.fontSize);
     if (clicked) {
-        setSelectedText(clicked.id);
-        cropDragRef.current = { isDown: true, lx: x, ly: y }; // Reuse ref for text drag
+        setSelectedId(clicked.id);
+        dragRef.current = { active: true, lx: x, ly: y };
+        setActiveTab("text");
     } else {
-        setSelectedText(null);
+        setSelectedId(null);
     }
   };
 
   const handleMove = (e) => {
-    if (e.cancelable && (isEraserActive || cropDragRef.current.isDown)) e.preventDefault(); // Stop scroll
+    if (!dragRef.current.active) return;
+    e.preventDefault(); // Stop Scroll
 
-    if (stage === 'crop') {
-        const { rawX, rawY } = getCoords(e);
-        handleCropMove(rawX, rawY);
+    if (stage === "crop") {
+        const { rawX, rawY } = getPointerPos(e, cropRef.current);
+        const dx = rawX - dragRef.current.lx;
+        const dy = rawY - dragRef.current.ly;
+        setCropPos(p => ({ x: p.x + (dx/cropScale), y: p.y + (dy/cropScale) }));
+        dragRef.current.lx = rawX;
+        dragRef.current.ly = rawY;
         return;
     }
 
-    const { x, y } = getCoords(e);
+    const { x, y } = getPointerPos(e, canvasRef.current);
 
-    if (isEraserActive && lastEraserPos.current) {
-        handleEraserMove(x, y);
-    } else if (selectedText && cropDragRef.current.isDown) {
-        updateText(selectedText, { x, y });
+    if (isErasing) {
+        handleEraseMove(x, y);
+    } else if (selectedId) {
+        setTexts(prev => prev.map(t => t.id === selectedId ? { ...t, x, y } : t));
     }
   };
 
   const handleEnd = () => {
-    if (stage === 'crop') {
-        cropDragRef.current.isDown = false;
-        return;
+    if (isErasing && dragRef.current.active) {
+        // Commit erase to image
+        setEditorImg(canvasRef.current.toDataURL());
     }
-    if (isEraserActive) {
-        saveEraserStroke();
-    }
-    cropDragRef.current.isDown = false;
+    dragRef.current.active = false;
   };
 
-  // =========================================
-  // EXPORT & SHARE
-  // =========================================
+  const handleEraseMove = (x, y) => {
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  };
+
+  // --- TEXT TOOLS ---
+  const addText = () => {
+    const c = canvasRef.current;
+    const newText = {
+        id: Date.now(),
+        text: "DOUBLE TAP",
+        x: c.width / 2,
+        y: c.height / 2,
+        fontSize: c.width * 0.1,
+        fontFamily: "Impact",
+        color: "#ffffff",
+        strokeColor: "#000000",
+        strokeWidth: 5,
+        rotation: 0,
+        uppercase: true,
+        shadow: true
+    };
+    setTexts([...texts, newText]);
+    setSelectedId(newText.id);
+    setIsErasing(false);
+    setActiveTab("text");
+  };
+
+  const updateText = (key, val) => {
+    if (!selectedId) return;
+    setTexts(p => p.map(t => t.id === selectedId ? { ...t, [key]: val } : t));
+  };
+
+  // --- EXPORT & SHARE ---
   const handleShare = async () => {
-    const canvas = canvasRef.current;
-    
-    // Deselect to remove borders
-    setSelectedText(null);
-    
-    // Wait a tick for redraw
+    setSelectedId(null); // Hide selection box
     setTimeout(async () => {
         try {
-            const dataUrl = canvas.toDataURL("image/png");
+            const dataUrl = canvasRef.current.toDataURL("image/png");
             const blob = await (await fetch(dataUrl)).blob();
-            const file = new File([blob], "meme.png", { type: "image/png" });
-            
-            // Check native share support (Mobile)
+            const file = new File([blob], "meme_studio_export.png", { type: "image/png" });
+
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
-                    title: "Check out this meme!",
-                    text: "Made with UltimateMemeGen",
+                    title: "MemeStudio Export",
+                    text: "Created with MemeStudio 🎨"
                 });
             } else {
                 // Fallback for Desktop
-                const link = document.createElement("a");
-                link.download = `meme-${Date.now()}.png`;
-                link.href = dataUrl;
-                link.click();
-                alert("Shared! (Image downloaded because browser sharing is limited on desktop)");
+                const a = document.createElement("a");
+                a.href = dataUrl;
+                a.download = "meme_studio.png";
+                a.click();
             }
-        } catch (err) {
-            console.error(err);
-            alert("Could not share. Try taking a screenshot!");
+        } catch (e) {
+            alert("Sharing failed. Image downloaded instead.");
         }
-    }, 50);
+    }, 100);
   };
 
-  // --- iOS Scroll Prevention ---
-  useEffect(() => {
-    const c = stage === 'crop' ? cropCanvasRef.current : canvasRef.current;
-    if(!c) return;
-    const prevent = (e) => e.preventDefault();
-    c.addEventListener('touchmove', prevent, { passive: false });
-    return () => c.removeEventListener('touchmove', prevent);
-  }, [stage]);
+  // --- RENDER UI ---
+  const selText = texts.find(t => t.id === selectedId);
 
-
-  // =========================================
-  // UI RENDER
-  // =========================================
   return (
-    <div className="umg-root">
-      {/* HEADER */}
-      <div className="umg-header">
-        <h2>Meme Studio</h2>
-        {stage !== 'upload' && (
-            <button className="umg-btn-text" onClick={() => {
-                setStage('upload');
-                setOriginalImage(null);
-                setEditorImage(null);
-            }}>Start Over</button>
-        )}
+    <div className="ms-root">
+      {/* 1. HEADER */}
+      <div className="ms-header">
+        <div className="ms-logo">✨ MemeStudio</div>
+        {stage !== "home" && <button className="ms-btn-icon" onClick={() => setStage("home")}>✕</button>}
       </div>
 
-      {/* STAGE 1: UPLOAD */}
-      {stage === 'upload' && (
-        <div className="umg-upload-screen">
-            <div className="umg-dropzone" onClick={() => document.getElementById('file-in').click()}>
-                <span style={{fontSize:'40px'}}>📸</span>
-                <p><b>Tap to Upload Photo</b></p>
-                <input id="file-in" type="file" accept="image/*" onChange={e => handleFile(e.target.files[0])} hidden />
-            </div>
-            <p className="umg-sub">Or pick a template:</p>
-            <div className="umg-grid">
-                {templates.map(t => (
-                    <img key={t.name} src={t.url} onClick={() => handleTemplate(t.url)} alt={t.name} />
-                ))}
-            </div>
-        </div>
-      )}
-
-      {/* STAGE 2: CROP */}
-      {stage === 'crop' && (
-        <div className="umg-crop-screen">
-            <div className="umg-canvas-container">
-                <canvas 
-                    ref={cropCanvasRef}
-                    onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd}
-                    onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
-                />
-                <div className="umg-overlay-guide"></div>
-            </div>
-            <div className="umg-controls-row">
-                <input 
-                    type="range" min="0.5" max="3" step="0.1" 
-                    value={cropScale} onChange={e => setCropScale(+e.target.value)} 
-                />
-                <span style={{color:'white', fontSize:'12px'}}>Zoom</span>
-            </div>
-            <button className="umg-btn-action" onClick={applyCrop}>✅ Done Cropping</button>
-        </div>
-      )}
-
-      {/* STAGE 3: EDIT */}
-      {stage === 'edit' && (
-        <div className="umg-edit-screen">
-            <div className="umg-toolbar-top">
-                <button 
-                    className={`umg-tool ${isEraserActive ? 'active' : ''}`} 
-                    onClick={() => { setIsEraserActive(!isEraserActive); setSelectedText(null); }}
-                >
-                    🧹 Eraser
-                </button>
-                <button className="umg-tool" onClick={addText}>🅰️ +Text</button>
-            </div>
-
-            <div className="umg-canvas-wrap">
-                <canvas 
-                    ref={canvasRef}
-                    onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd}
-                    onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
-                />
-            </div>
-
-            {/* Context Controls */}
-            {isEraserActive && (
-                <div className="umg-context-panel">
-                    <label>Eraser Size</label>
-                    <input type="range" min="10" max="100" value={brushSize} onChange={e => setBrushSize(+e.target.value)} />
-                    <small>Rub image to remove background</small>
+      {/* 2. MAIN STAGE */}
+      <div className="ms-stage">
+        
+        {/* HOME SCREEN */}
+        {stage === "home" && (
+            <div className="ms-home">
+                <div className="ms-hero" onClick={() => document.getElementById("up-in").click()}>
+                    <div className="ms-hero-icon">📸</div>
+                    <h3>Open Photo</h3>
+                    <p>Tap to upload from gallery</p>
+                    <input id="up-in" type="file" accept="image/*" onChange={handleUpload} hidden />
                 </div>
-            )}
+                
+                <div className="ms-section-title">Trending Templates</div>
+                <div className="ms-grid">
+                    {TEMPLATES.map(t => (
+                        <div key={t.id} className="ms-card" onClick={() => loadTemplate(t.url)}>
+                            <img src={t.url} alt={t.name} loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
 
-            {selectedText && !isEraserActive && (
-                 <div className="umg-context-panel">
-                    <div className="umg-row">
-                        <input className="umg-txt-in" value={texts.find(t=>t.id===selectedText).content} onChange={e => updateText(selectedText, {content: e.target.value})} />
-                        <input type="color" value={texts.find(t=>t.id===selectedText).color} onChange={e => updateText(selectedText, {color: e.target.value})} />
+        {/* CROP SCREEN */}
+        {stage === "crop" && (
+            <div className="ms-crop">
+                <div className="ms-canvas-box">
+                    <canvas 
+                        ref={cropRef} 
+                        onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
+                        onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
+                    />
+                </div>
+                <div className="ms-tools-panel">
+                    <div className="ms-row">
+                        <label>Aspect Ratio</label>
+                        <div className="ms-btn-group">
+                            <button className={aspectRatio===1 ? 'active' : ''} onClick={() => setAspectRatio(1)}>1:1</button>
+                            <button className={aspectRatio===0.8 ? 'active' : ''} onClick={() => setAspectRatio(0.8)}>4:5</button>
+                            <button className={aspectRatio===1.77 ? 'active' : ''} onClick={() => setAspectRatio(1.77)}>16:9</button>
+                        </div>
                     </div>
-                    <div className="umg-row">
-                        <label>Size <input type="range" min="20" max="150" value={texts.find(t=>t.id===selectedText).fontSize} onChange={e => updateText(selectedText, {fontSize: +e.target.value})} /></label>
-                        <button className="umg-btn-del" onClick={() => {
-                            setTexts(prev => prev.filter(t => t.id !== selectedText));
-                            setSelectedText(null);
-                        }}>🗑️</button>
+                    <div className="ms-row">
+                        <label>Zoom</label>
+                        <input type="range" min="0.5" max="3" step="0.1" value={cropScale} onChange={e=>setCropScale(+e.target.value)} />
                     </div>
-                 </div>
-            )}
+                    <button className="ms-btn-primary" onClick={saveCrop}>Continue →</button>
+                </div>
+            </div>
+        )}
 
-            <button className="umg-btn-share" onClick={handleShare}>
-                🚀 Share to WhatsApp / X
-            </button>
-        </div>
-      )}
+        {/* EDIT SCREEN */}
+        {stage === "edit" && (
+            <div className="ms-edit">
+                <div className="ms-canvas-box edit-mode">
+                    <canvas 
+                        ref={canvasRef} 
+                        onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
+                        onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
+                    />
+                </div>
 
-      {/* STYLES */}
+                {/* BOTTOM TOOLBAR */}
+                <div className="ms-toolbar">
+                    {/* MENU TABS */}
+                    <div className="ms-tabs">
+                        <button className={activeTab==='text' ? 'active' : ''} onClick={()=>{setActiveTab('text'); setIsErasing(false);}}>
+                            🅰️ Text
+                        </button>
+                        <button className={activeTab==='image' ? 'active' : ''} onClick={()=>{setActiveTab('image'); setIsErasing(false);}}>
+                            🎨 Filters
+                        </button>
+                        <button className={activeTab==='draw' ? 'active' : ''} onClick={()=>{setActiveTab('draw'); setIsErasing(true); setSelectedId(null);}}>
+                            🧹 Eraser
+                        </button>
+                    </div>
+
+                    {/* DYNAMIC CONTROLS */}
+                    <div className="ms-controls">
+                        
+                        {activeTab === 'text' && (
+                            <div className="ms-panel-text">
+                                <div className="ms-row-quick">
+                                    <button className="ms-btn-add" onClick={addText}>+ New Text</button>
+                                    {selText && <button className="ms-btn-danger" onClick={() => {
+                                        setTexts(texts.filter(t => t.id !== selectedId));
+                                        setSelectedId(null);
+                                    }}>Delete</button>}
+                                </div>
+                                {selText ? (
+                                    <>
+                                        <input className="ms-input-text" value={selText.text} onChange={e=>updateText('text', e.target.value)} />
+                                        <div className="ms-scroll-row">
+                                            {FONTS.map(f => (
+                                                <button key={f} className={`ms-pill ${selText.fontFamily===f?'active':''}`} 
+                                                    onClick={()=>updateText('fontFamily', f)} style={{fontFamily:f}}>
+                                                    Aa
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="ms-row-compact">
+                                            <input type="color" value={selText.color} onChange={e=>updateText('color', e.target.value)} />
+                                            <div className="ms-slider-wrap">
+                                                <span>Size</span>
+                                                <input type="range" min="10" max="200" value={selText.fontSize} onChange={e=>updateText('fontSize', +e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <div className="ms-row-compact">
+                                            <input type="color" value={selText.strokeColor} onChange={e=>updateText('strokeColor', e.target.value)} />
+                                            <div className="ms-slider-wrap">
+                                                <span>Outline</span>
+                                                <input type="range" min="0" max="20" value={selText.strokeWidth} onChange={e=>updateText('strokeWidth', +e.target.value)} />
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : <div className="ms-hint">Tap text to edit or add new</div>}
+                            </div>
+                        )}
+
+                        {activeTab === 'image' && (
+                            <div className="ms-panel-filters">
+                                <div className="ms-row">
+                                    <label>Brightness</label>
+                                    <input type="range" min="0" max="200" value={filters.brightness} onChange={e=>setFilters({...filters, brightness: +e.target.value})} />
+                                </div>
+                                <div className="ms-row">
+                                    <label>Contrast</label>
+                                    <input type="range" min="0" max="200" value={filters.contrast} onChange={e=>setFilters({...filters, contrast: +e.target.value})} />
+                                </div>
+                                <div className="ms-row">
+                                    <label>B&W</label>
+                                    <input type="range" min="0" max="100" value={filters.grayscale} onChange={e=>setFilters({...filters, grayscale: +e.target.value})} />
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'draw' && (
+                            <div className="ms-panel-draw">
+                                <label>Eraser Size: {brushSize}px</label>
+                                <input type="range" min="5" max="100" value={brushSize} onChange={e=>setBrushSize(+e.target.value)} />
+                                <p className="ms-hint-sm">Rub finger on image to make background transparent</p>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* EXPORT BUTTON */}
+                    <button className="ms-btn-share" onClick={handleShare}>
+                        <span className="ms-icon">🚀</span> Share to Apps
+                        <div className="ms-subtext">WhatsApp • Insta • X • Facebook</div>
+                    </button>
+                </div>
+            </div>
+        )}
+
+      </div>
+
+      {/* 3. STYLES */}
       <style>{`
-        .umg-root {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 500px; margin: 0 auto; background: #121212; color: white;
-            min-height: 100vh; display: flex; flex-direction: column;
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --accent: #3b82f6;
+            --text: #f8fafc;
+            --subtext: #94a3b8;
+            --border: #334155;
+            --danger: #ef4444;
         }
-        .umg-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .umg-header h2 { margin:0; font-size: 1.2rem; }
-        .umg-btn-text { background:none; border:none; color: #aaa; cursor: pointer; }
-        
-        .umg-upload-screen { padding: 20px; text-align: center; }
-        .umg-dropzone { background: #222; border: 2px dashed #444; border-radius: 10px; padding: 40px; margin-bottom: 20px; cursor: pointer; }
-        .umg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .umg-grid img { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #333; }
-        
-        .umg-crop-screen { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .umg-canvas-container { position: relative; width: 100%; max-width: 350px; aspect-ratio: 1; overflow: hidden; border: 2px solid #555; margin-bottom: 20px; touch-action: none; }
-        .umg-canvas-container canvas { width: 100%; height: 100%; display: block; }
-        .umg-overlay-guide { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.3); pointer-events: none; box-shadow: 0 0 0 999px rgba(0,0,0,0.5); }
-        
-        .umg-edit-screen { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-        .umg-canvas-wrap { background: url('https://upload.wikimedia.org/wikipedia/commons/5/5d/Checker-16x16.png'); overflow: hidden; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); touch-action: none; }
-        .umg-canvas-wrap canvas { display: block; width: 100%; height: auto; }
-        
-        .umg-toolbar-top { display: flex; gap: 10px; margin-bottom: 5px; }
-        .umg-tool { flex: 1; background: #333; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; }
-        .umg-tool.active { background: #eab308; color: black; }
-        
-        .umg-context-panel { background: #222; padding: 15px; border-radius: 8px; border: 1px solid #333; animation: popUp 0.2s ease; }
-        .umg-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-        .umg-txt-in { flex: 1; padding: 8px; border-radius: 4px; border: none; font-size: 16px; }
-        .umg-btn-del { background: #ef4444; border: none; padding: 8px; border-radius: 4px; cursor: pointer; }
-        
-        .umg-btn-action { background: #3b82f6; color: white; padding: 15px; border: none; border-radius: 30px; font-weight: bold; font-size: 1rem; width: 100%; cursor: pointer; }
-        .umg-btn-share { background: #10b981; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 1.1rem; width: 100%; margin-top: 10px; cursor: pointer; box-shadow: 0 4px 0 #059669; }
-        .umg-btn-share:active { transform: translateY(4px); box-shadow: none; }
+        .ms-root {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            max-width: 600px; margin: 0 auto;
+            position: relative; overflow: hidden;
+        }
+        /* Header */
+        .ms-header {
+            padding: 16px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); background: var(--bg); z-index: 10;
+        }
+        .ms-logo { font-weight: 900; font-size: 1.2rem; background: linear-gradient(45deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .ms-btn-icon { background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; }
 
-        @keyframes popUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        /* Stage */
+        .ms-stage { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+
+        /* Home */
+        .ms-home { padding: 20px; }
+        .ms-hero {
+            background: var(--surface); border: 2px dashed var(--border); border-radius: 16px;
+            padding: 40px; text-align: center; margin-bottom: 30px; cursor: pointer;
+            transition: 0.2s;
+        }
+        .ms-hero:active { background: #2d3e56; }
+        .ms-hero-icon { font-size: 3rem; margin-bottom: 10px; }
+        .ms-hero h3 { margin: 0 0 5px 0; }
+        .ms-hero p { margin: 0; color: var(--subtext); font-size: 0.9rem; }
+        
+        .ms-section-title { font-weight: bold; margin-bottom: 15px; color: var(--subtext); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+        .ms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-bottom: 40px; }
+        .ms-card { aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #000; cursor: pointer; border: 1px solid var(--border); }
+        .ms-card img { width: 100%; height: 100%; object-fit: cover; transition: 0.2s; }
+        .ms-card:active img { opacity: 0.7; }
+
+        /* Crop & Edit Common */
+        .ms-canvas-box {
+            flex: 1; background: #000; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; touch-action: none; position: relative;
+        }
+        .ms-canvas-box.edit-mode {
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2nk5eX9z0SRgXrAAKQI500g6wZ0Y4g2A6oR7B50A9A8iGoGVDWjmgFkAwCAMx0Ff/QW3gAAAABJRU5ErkJggg==');
+        }
+        canvas { max-width: 100%; max-height: 100%; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+
+        /* Tools Panel */
+        .ms-tools-panel { padding: 20px; background: var(--surface); border-top: 1px solid var(--border); }
+        .ms-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .ms-btn-group { display: flex; background: var(--bg); padding: 4px; border-radius: 8px; }
+        .ms-btn-group button {
+            background: none; border: none; color: var(--subtext); padding: 6px 12px;
+            border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+        }
+        .ms-btn-group button.active { background: var(--surface); color: var(--text); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        
+        input[type=range] { flex: 1; margin-left: 15px; accent-color: var(--accent); }
+
+        .ms-btn-primary { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1rem; cursor: pointer; }
+        
+        /* Edit Toolbar */
+        .ms-toolbar { background: var(--surface); border-top: 1px solid var(--border); }
+        .ms-tabs { display: flex; border-bottom: 1px solid var(--border); }
+        .ms-tabs button {
+            flex: 1; padding: 12px; background: none; border: none; color: var(--subtext);
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+        }
+        .ms-tabs button.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: rgba(59, 130, 246, 0.1); }
+        
+        .ms-controls { padding: 16px; min-height: 180px; }
+        
+        /* Text Controls */
+        .ms-row-quick { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .ms-btn-add { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; }
+        .ms-btn-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; }
+        
+        .ms-input-text { width: 100%; padding: 10px; background: var(--bg); border: 1px solid var(--border); color: white; border-radius: 8px; margin-bottom: 12px; font-size: 1rem; }
+        
+        .ms-scroll-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+        .ms-pill {
+            background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            padding: 6px 12px; border-radius: 6px; white-space: nowrap; font-size: 1rem;
+        }
+        .ms-pill.active { border-color: var(--accent); color: var(--accent); }
+        
+        .ms-row-compact { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+        .ms-slider-wrap { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--subtext); }
+        input[type=color] { width: 32px; height: 32px; border: none; padding: 0; background: none; border-radius: 50%; overflow: hidden; cursor: pointer; }
+        
+        .ms-hint { text-align: center; color: var(--subtext); padding: 20px; font-size: 0.9rem; opacity: 0.7; }
+        .ms-hint-sm { text-align: center; color: var(--subtext); font-size: 0.8rem; margin-top: 5px; }
+
+        /* Share Button */
+        .ms-btn-share {
+            width: calc(100% - 32px); margin: 0 16px 16px 16px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white; border: none; padding: 14px; border-radius: 12px;
+            font-weight: bold; font-size: 1.1rem; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .ms-btn-share:active { transform: scale(0.98); }
+        .ms-subtext { font-size: 0.75rem; font-weight: normal; opacity: 0.9; }
+
       `}</style>
     </div>
   );
