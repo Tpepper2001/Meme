@@ -1,190 +1,176 @@
 import { useState, useRef, useEffect } from 'react';
 
 export default function AdvancedMemeGenerator() {
-  const [image, setImage] = useState(null);
-  const [texts, setTexts] = useState([]);
-  const [selectedText, setSelectedText] = useState(null);
+  const [image, setImage] = useState<string | null>(null);
+  const [texts, setTexts] = useState<any[]>([]);
+  const [selectedText, setSelectedText] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const canvasRef = useRef(null);
-  const dropZoneRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  // Popular meme templates
+  // Fixed: Using corsproxy.io to bypass CORS restrictions
   const memeTemplates = [
-    { name: 'Drake', url: 'https://i.imgflip.com/30b1gx.jpg' },
-    { name: 'Distracted Boyfriend', url: 'https://i.imgflip.com/1ur9b0.jpg' },
-    { name: 'Two Buttons', url: 'https://i.imgflip.com/1g8my4.jpg' },
-    { name: 'Disaster Girl', url: 'https://i.imgflip.com/23ls.jpg' },
-    { name: 'Success Kid', url: 'https://i.imgflip.com/1bhk.jpg' }
+    { name: 'Drake Hotline', url: 'https://corsproxy.io/?https://i.imgflip.com/30b1gx.jpg' },
+    { name: 'Distracted Boyfriend', url: 'https://corsproxy.io/?https://i.imgflip.com/1ur9b0.jpg' },
+    { name: 'Two Buttons', url: 'https://corsproxy.io/?https://i.imgflip.com/1g8my4.jpg' },
+    { name: 'Change My Mind', url: 'https://corsproxy.io/?https://i.imgflip.com/2/1g8my4.jpg' },
+    { name: 'Disaster Girl', url: 'https://corsproxy.io/?https://i.imgflip.com/23ls.jpg' },
+    { name: 'Success Kid', url: 'https://corsproxy.io/?https://i.imgflip.com/1bhk.jpg' },
+    { name: 'This Is Fine', url: 'https://corsproxy.io/?https://i.imgflip.com/2/1bij.jpg' },
+    { name: 'SpongeBob Mocking', url: 'https://corsproxy.io/?https://i.imgflip.com/1otk96.jpg' },
   ];
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       loadImageFile(file);
     }
   };
 
-  const loadImageFile = (file) => {
+  const loadImageFile = (file: File) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setImage(event.target.result);
+    reader.onload = (e) => {
+      setImage(e.target?.result as string);
       setTexts([]);
       setSelectedText(null);
     };
     reader.readAsDataURL(file);
   };
 
-  const loadTemplate = (url) => {
+  const loadTemplate = (url: string) => {
     setImage(url);
     setTexts([]);
     setSelectedText(null);
   };
 
-  // Drag and Drop handlers
-  const handleDragOver = (e) => {
+  // Drag & Drop
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingOver(true);
   };
 
-  const handleDragLeave = (e) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingOver(false);
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingOver(false);
 
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-    
-    if (imageFile) {
-      loadImageFile(imageFile);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      loadImageFile(file);
     }
   };
 
   const addText = () => {
     const canvas = canvasRef.current;
-    const centerX = canvas ? canvas.width / 2 : 250;
+    const centerX = canvas ? canvas.width / 2 : 300;
     const centerY = canvas ? canvas.height / 4 : 100;
 
     const newText = {
       id: Date.now(),
-      content: 'NEW TEXT',
+      content: 'DOUBLE CLICK TO EDIT',
       x: centerX,
       y: centerY,
-      fontSize: 48,
+      fontSize: 60,
       color: '#ffffff',
       strokeColor: '#000000',
-      strokeWidth: 3,
+      strokeWidth: 5,
       fontFamily: 'Impact',
       rotation: 0,
-      uppercase: true
+      uppercase: true,
     };
     setTexts([...texts, newText]);
     setSelectedText(newText.id);
   };
 
-  const updateText = (id, updates) => {
+  const updateText = (id: number, updates: Partial<any>) => {
     setTexts(texts.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
-  const deleteText = (id) => {
+  const deleteText = (id: number) => {
     setTexts(texts.filter(t => t.id !== id));
-    setSelectedText(null);
+    if (selectedText === id) setSelectedText(null);
   };
 
   const drawCanvas = () => {
     if (!image || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!;
     const img = new Image();
-    
     img.crossOrigin = 'anonymous';
 
     img.onload = () => {
-      // Set canvas dimensions to match image
       canvas.width = img.width;
       canvas.height = img.height;
-      
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw image
-      ctx.drawImage(img, 0, 0, img.width, img.height);
+      ctx.drawImage(img, 0, 0);
 
-      // Draw all text elements
       texts.forEach(text => {
         ctx.save();
         ctx.translate(text.x, text.y);
         ctx.rotate((text.rotation * Math.PI) / 180);
-        
+
+        ctx.font = `bold \( {text.fontSize}px \){text.fontFamily}, Impact, Arial Black, sans-serif`;
         ctx.fillStyle = text.color;
         ctx.strokeStyle = text.strokeColor;
         ctx.lineWidth = text.strokeWidth;
         ctx.lineJoin = 'round';
-        ctx.miterLimit = 2;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `bold ${text.fontSize}px ${text.fontFamily}, Impact, Arial Black, sans-serif`;
 
         const displayText = text.uppercase ? text.content.toUpperCase() : text.content;
-        
-        // Draw stroke first, then fill
+
         if (text.strokeWidth > 0) {
           ctx.strokeText(displayText, 0, 0);
         }
         ctx.fillText(displayText, 0, 0);
         ctx.restore();
       });
-
-      // Force canvas to update display
-      canvas.style.display = 'block';
     };
 
-    img.onerror = (err) => {
-      console.error('Failed to load image:', err);
+    img.onerror = () => {
+      console.error('Failed to load image');
     };
 
-    img.src = image;
+    img.src = image + (image.includes('corsproxy.io') ? '' : '?t=' + Date.now());
   };
 
   useEffect(() => {
     drawCanvas();
   }, [image, texts]);
 
-  const handleCanvasClick = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
+  // Canvas Interactions
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    const clickedText = texts.find(t => {
-      const distance = Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2);
-      return distance < t.fontSize * 1.5;
+    const clicked = texts.find(t => {
+      const dist = Math.hypot(t.x - x, t.y - y);
+      return dist < t.fontSize * 1.2;
     });
 
-    setSelectedText(clickedText ? clickedText.id : null);
+    setSelectedText(clicked ? clicked.id : null);
   };
 
-  const handleCanvasMouseDown = (e) => {
-    if (!selectedText) return;
-    setDragging(true);
-  };
+  const handleMouseDown = () => selectedText && setDragging(true);
+  const handleMouseUp = () => setDragging(false);
 
-  const handleCanvasMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!dragging || !selectedText) return;
 
-    const canvas = canvasRef.current;
+    const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -194,307 +180,183 @@ export default function AdvancedMemeGenerator() {
     updateText(selectedText, { x, y });
   };
 
-  const handleCanvasMouseUp = () => {
-    setDragging(false);
-  };
-
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     try {
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          alert('Failed to create image. Please try again.');
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `meme-${Date.now()}.png`;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      }, 'image/png', 1.0);
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert('Download failed. Please try again.');
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `meme-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      alert('Download failed. Try uploading your own image.');
     }
   };
 
   const selectedTextObj = texts.find(t => t.id === selectedText);
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'system-ui', background: '#f5f5f5', minHeight: '100vh' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
-        🎨 Advanced Meme Generator
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', fontFamily: 'system-ui, sans-serif', background: '#f0f2f5', minHeight: '100vh' }}>
+      <h1 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '30px', color: '#1a1a1a' }}>
+        Advanced Meme Generator
       </h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {/* Drag & Drop Upload Zone */}
-          <div
-            ref={dropZoneRef}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            style={{
-              background: isDraggingOver ? '#e3f2fd' : 'white',
-              padding: '40px 20px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              border: isDraggingOver ? '3px dashed #0070f3' : '3px dashed #ddd',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => document.getElementById('fileInput').click()}
-          >
-            <div style={{ fontSize: '48px', marginBottom: '10px' }}>📁</div>
-            <h3 style={{ marginBottom: '10px', fontSize: '16px', fontWeight: 'bold', color: '#333' }}>
-              {isDraggingOver ? 'Drop image here!' : 'Drag & Drop Image'}
-            </h3>
-            <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-              or click to browse
-            </p>
-            <input
-              id="fileInput"
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              style={{ display: 'none' }}
-            />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                document.getElementById('fileInput').click();
-              }}
-              style={{
-                padding: '10px 20px',
-                background: '#0070f3',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold'
-              }}
-            >
-              Choose File
-            </button>
-          </div>
-
-          {/* Meme Templates */}
-          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>🖼️ Popular Templates</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-              {memeTemplates.map(template => (
-                <button
-                  key={template.name}
-                  onClick={() => loadTemplate(template.url)}
-                  style={{
-                    padding: '10px',
-                    background: '#f0f0f0',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => e.target.style.background = '#e0e0e0'}
-                  onMouseOut={(e) => e.target.style.background = '#f0f0f0'}
-                >
-                  {template.name}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Upload & Templates */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+        {/* Drag & Drop Zone */}
+        <div
+          ref={dropZoneRef}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => document.getElementById('fileInput')?.click()}
+          style={{
+            background: isDraggingOver ? '#e0f2fe' : 'white',
+            border: `3px dashed ${isDraggingOver ? '#0ea5e9' : '#ccc'}`,
+            borderRadius: '16px',
+            padding: '40px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.3s',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          }}
+        >
+          <div style={{ fontSize: '64px' }}>Drop Image Here</div>
+          <p style={{ fontSize: '18px', margin: '16px 0', color: '#555' }}>or click to browse</p>
+          <input id="fileInput" type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+          <button style={{ padding: '12px 32px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
+            Choose Image
+          </button>
         </div>
 
-        {/* Main Content Area */}
-        <div style={{ display: 'grid', gridTemplateColumns: image ? '300px 1fr' : '1fr', gap: '20px' }}>
-          {/* Text Controls - Only show when image is loaded */}
-          {image && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                <h3 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>✏️ Text Controls</h3>
-                <button
-                  onClick={addText}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    background: '#0070f3',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    marginBottom: '15px'
-                  }}
-                >
-                  + Add Text
-                </button>
-
-                {selectedTextObj && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <input
-                      type="text"
-                      value={selectedTextObj.content}
-                      onChange={(e) => updateText(selectedText, { content: e.target.value })}
-                      placeholder="Text content"
-                      style={{ padding: '10px', fontSize: '14px', borderRadius: '6px', border: '2px solid #ddd' }}
-                    />
-
-                    <label style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      <strong>Font Size: {selectedTextObj.fontSize}px</strong>
-                      <input
-                        type="range"
-                        min="12"
-                        max="120"
-                        value={selectedTextObj.fontSize}
-                        onChange={(e) => updateText(selectedText, { fontSize: parseInt(e.target.value) })}
-                      />
-                    </label>
-
-                    <label style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      <strong>Text Color</strong>
-                      <input
-                        type="color"
-                        value={selectedTextObj.color}
-                        onChange={(e) => updateText(selectedText, { color: e.target.value })}
-                        style={{ width: '100%', height: '40px', cursor: 'pointer', borderRadius: '6px' }}
-                      />
-                    </label>
-
-                    <label style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      <strong>Outline Color</strong>
-                      <input
-                        type="color"
-                        value={selectedTextObj.strokeColor}
-                        onChange={(e) => updateText(selectedText, { strokeColor: e.target.value })}
-                        style={{ width: '100%', height: '40px', cursor: 'pointer', borderRadius: '6px' }}
-                      />
-                    </label>
-
-                    <label style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      <strong>Outline Width: {selectedTextObj.strokeWidth}px</strong>
-                      <input
-                        type="range"
-                        min="0"
-                        max="10"
-                        value={selectedTextObj.strokeWidth}
-                        onChange={(e) => updateText(selectedText, { strokeWidth: parseInt(e.target.value) })}
-                      />
-                    </label>
-
-                    <label style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      <strong>Rotation: {selectedTextObj.rotation}°</strong>
-                      <input
-                        type="range"
-                        min="-180"
-                        max="180"
-                        value={selectedTextObj.rotation}
-                        onChange={(e) => updateText(selectedText, { rotation: parseInt(e.target.value) })}
-                      />
-                    </label>
-
-                    <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', background: '#f9f9f9', borderRadius: '6px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedTextObj.uppercase}
-                        onChange={(e) => updateText(selectedText, { uppercase: e.target.checked })}
-                      />
-                      <strong>UPPERCASE</strong>
-                    </label>
-
-                    <button
-                      onClick={() => deleteText(selectedText)}
-                      style={{
-                        padding: '10px',
-                        background: '#ff4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      🗑️ Delete Text
-                    </button>
-                  </div>
-                )}
-
-                {!selectedTextObj && texts.length > 0 && (
-                  <p style={{ fontSize: '13px', color: '#666', textAlign: 'center', marginTop: '10px' }}>
-                    Click on text in the canvas to edit
-                  </p>
-                )}
-              </div>
-
-              {/* Download Button */}
+        {/* Templates */}
+        <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Popular Templates</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            {memeTemplates.map(t => (
               <button
-                onClick={handleDownload}
+                key={t.name}
+                onClick={() => loadTemplate(t.url)}
                 style={{
-                  padding: '15px',
-                  background: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
+                  padding: '16px',
+                  background: '#f8f9fa',
+                  border: '1px solid #ddd',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '16px',
-                  fontWeight: 'bold'
+                  transition: 'all 0.2s',
                 }}
+                onMouseOver={e => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseOut={e => e.currentTarget.style.background = '#f8f9fa'}
               >
-                ⬇️ Download Meme
+                {t.name}
               </button>
-            </div>
-          )}
-
-          {/* Canvas Area */}
-          <div
-            style={{
-              background: 'white',
-              padding: '20px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              minHeight: '500px'
-            }}
-          >
-            {image ? (
-              <div style={{ maxWidth: '100%', maxHeight: '80vh', overflow: 'auto' }}>
-                <canvas
-                  ref={canvasRef}
-                  onClick={handleCanvasClick}
-                  onMouseDown={handleCanvasMouseDown}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseUp={handleCanvasMouseUp}
-                  onMouseLeave={handleCanvasMouseUp}
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    height: 'auto',
-                    cursor: dragging ? 'grabbing' : selectedText ? 'grab' : 'crosshair',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    borderRadius: '8px'
-                  }}
-                />
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', color: '#999' }}>
-                <p style={{ fontSize: '48px', marginBottom: '10px' }}>📸</p>
-                <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>No image loaded</p>
-                <p style={{ fontSize: '14px' }}>Upload an image or select a template to get started</p>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Main Editor */}
+      {image && (
+        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '24px' }}>
+          {/* Controls */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+              <button
+                onClick={addText}
+                style={{ width: '100%', padding: '16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                + Add Text Box
+              </button>
+
+              {selectedTextObj && (
+                <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <input
+                    type="text"
+                    value={selectedTextObj.content}
+                    onChange={e => updateText(selectedText!, { content: e.target.value })}
+                    placeholder="Enter meme text..."
+                    style={{ padding: '14px', fontSize: '16px', borderRadius: '8px', border: '2px solid #e5e7eb' }}
+                  />
+
+                  <div>
+                    <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Size: {selectedTextObj.fontSize}px</label>
+                    <input type="range" min="20" max="150" value={selectedTextObj.fontSize} onChange={e => updateText(selectedText!, { fontSize: +e.target.value })} style={{ width: '100%' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Color</label>
+                    <input type="color" value={selectedTextObj.color} onChange={e => updateText(selectedText!, { color: e.target.value })} style={{ width: '100%', height: '50px', borderRadius: '8px' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Outline</label>
+                    <input type="color" value={selectedTextObj.strokeColor} onChange={e => updateText(selectedText!, { strokeColor: e.target.value })} style={{ width: '100%', height: '50px', borderRadius: '8px' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Outline Width: {selectedTextObj.strokeWidth}px</label>
+                    <input type="range" min="0" max="15" value={selectedTextObj.strokeWidth} onChange={e => updateText(selectedText!, { strokeWidth: +e.target.value })} style={{ width: '100%' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Rotation: {selectedTextObj.rotation}°</label>
+                    <input type="range" min="-180" max="180" value={selectedTextObj.rotation} onChange={e => updateText(selectedText!, { rotation: +e.target.value })} style={{ width: '100%' }} />
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold' }}>
+                    <input type="checkbox" checked={selectedTextObj.uppercase} onChange={e => updateText(selectedText!, { uppercase: e.target.checked })} />
+                    UPPERCASE TEXT
+                  </label>
+
+                  <button
+                    onClick={() => deleteText(selectedText!)}
+                    style={{ padding: '12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    Delete Text
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleDownload}
+              style={{ padding: '20px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '16px', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 8px 20px rgba(139,92,246,0.4)' }}
+            >
+              Download Meme (PNG)
+            </button>
+          </div>
+
+          {/* Canvas */}
+          <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <canvas
+              ref={canvasRef}
+              onClick={handleCanvasClick}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{
+                maxWidth: '100%',
+                height: 'auto',
+                borderRadius: '12px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                cursor: dragging ? 'grabbing' : selectedText ? 'grab' : 'crosshair',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {!image && (
+        <div style={{ textAlign: 'center', padding: '100px 20px', color: '#666' }}>
+          <div style={{ fontSize: '100px' }}>No Image Yet</div>
+          <p style={{ fontSize: '24px', marginTop: '20px' }}>Upload an image or pick a template to start memeing!</p>
+        </div>
+      )}
     </div>
   );
 }
