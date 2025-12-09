@@ -5,8 +5,9 @@ export default function AdvancedMemeGenerator() {
   const [texts, setTexts] = useState([]);
   const [selectedText, setSelectedText] = useState(null);
   const [dragging, setDragging] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const canvasRef = useRef(null);
-  const containerRef = useRef(null);
+  const dropZoneRef = useRef(null);
 
   // Popular meme templates
   const memeTemplates = [
@@ -19,27 +20,63 @@ export default function AdvancedMemeGenerator() {
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImage(event.target.result);
-        setTexts([]);
-      };
-      reader.readAsDataURL(file);
+    if (file && file.type.startsWith('image/')) {
+      loadImageFile(file);
     }
+  };
+
+  const loadImageFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImage(event.target.result);
+      setTexts([]);
+      setSelectedText(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   const loadTemplate = (url) => {
     setImage(url);
     setTexts([]);
+    setSelectedText(null);
+  };
+
+  // Drag and Drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find(file => file.type.startsWith('image/'));
+    
+    if (imageFile) {
+      loadImageFile(imageFile);
+    }
   };
 
   const addText = () => {
+    const canvas = canvasRef.current;
+    const centerX = canvas ? canvas.width / 2 : 250;
+    const centerY = canvas ? canvas.height / 4 : 100;
+
     const newText = {
       id: Date.now(),
-      content: 'New Text',
-      x: 200,
-      y: 100,
+      content: 'NEW TEXT',
+      x: centerX,
+      y: centerY,
       fontSize: 48,
       color: '#ffffff',
       strokeColor: '#000000',
@@ -71,6 +108,7 @@ export default function AdvancedMemeGenerator() {
     img.crossOrigin = 'anonymous';
 
     img.onload = () => {
+      // Set canvas dimensions to match image
       canvas.width = img.width;
       canvas.height = img.height;
       
@@ -78,7 +116,7 @@ export default function AdvancedMemeGenerator() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Draw image
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, img.width, img.height);
 
       // Draw all text elements
       texts.forEach(text => {
@@ -89,6 +127,8 @@ export default function AdvancedMemeGenerator() {
         ctx.fillStyle = text.color;
         ctx.strokeStyle = text.strokeColor;
         ctx.lineWidth = text.strokeWidth;
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `bold ${text.fontSize}px ${text.fontFamily}, Impact, Arial Black, sans-serif`;
@@ -102,10 +142,13 @@ export default function AdvancedMemeGenerator() {
         ctx.fillText(displayText, 0, 0);
         ctx.restore();
       });
+
+      // Force canvas to update display
+      canvas.style.display = 'block';
     };
 
-    img.onerror = () => {
-      console.error('Failed to load image');
+    img.onerror = (err) => {
+      console.error('Failed to load image:', err);
     };
 
     img.src = image;
@@ -160,17 +203,18 @@ export default function AdvancedMemeGenerator() {
     if (!canvas) return;
     
     try {
-      // Create a temporary link element
-      const link = document.createElement('a');
-      link.download = `meme-${Date.now()}.png`;
-      
-      // Convert canvas to blob for better browser compatibility
       canvas.toBlob((blob) => {
+        if (!blob) {
+          alert('Failed to create image. Please try again.');
+          return;
+        }
         const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `meme-${Date.now()}.png`;
         link.href = url;
+        document.body.appendChild(link);
         link.click();
-        
-        // Clean up
+        document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(url), 100);
       }, 'image/png', 1.0);
     } catch (error) {
@@ -189,15 +233,56 @@ export default function AdvancedMemeGenerator() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {/* Image Upload */}
-          <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: 'bold' }}>📁 Upload Image</h3>
+          {/* Drag & Drop Upload Zone */}
+          <div
+            ref={dropZoneRef}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            style={{
+              background: isDraggingOver ? '#e3f2fd' : 'white',
+              padding: '40px 20px',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              border: isDraggingOver ? '3px dashed #0070f3' : '3px dashed #ddd',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onClick={() => document.getElementById('fileInput').click()}
+          >
+            <div style={{ fontSize: '48px', marginBottom: '10px' }}>📁</div>
+            <h3 style={{ marginBottom: '10px', fontSize: '16px', fontWeight: 'bold', color: '#333' }}>
+              {isDraggingOver ? 'Drop image here!' : 'Drag & Drop Image'}
+            </h3>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+              or click to browse
+            </p>
             <input
+              id="fileInput"
               type="file"
               accept="image/*"
               onChange={handleImageUpload}
-              style={{ width: '100%', padding: '10px', fontSize: '14px', border: '2px dashed #ddd', borderRadius: '8px', cursor: 'pointer' }}
+              style={{ display: 'none' }}
             />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                document.getElementById('fileInput').click();
+              }}
+              style={{
+                padding: '10px 20px',
+                background: '#0070f3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              Choose File
+            </button>
           </div>
 
           {/* Meme Templates */}
@@ -370,7 +455,6 @@ export default function AdvancedMemeGenerator() {
 
           {/* Canvas Area */}
           <div
-            ref={containerRef}
             style={{
               background: 'white',
               padding: '20px',
@@ -383,26 +467,29 @@ export default function AdvancedMemeGenerator() {
             }}
           >
             {image ? (
-              <canvas
-                ref={canvasRef}
-                onClick={handleCanvasClick}
-                onMouseDown={handleCanvasMouseDown}
-                onMouseMove={handleCanvasMouseMove}
-                onMouseUp={handleCanvasMouseUp}
-                onMouseLeave={handleCanvasMouseUp}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '80vh',
-                  height: 'auto',
-                  cursor: dragging ? 'grabbing' : selectedText ? 'grab' : 'crosshair',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  borderRadius: '8px'
-                }}
-              />
+              <div style={{ maxWidth: '100%', maxHeight: '80vh', overflow: 'auto' }}>
+                <canvas
+                  ref={canvasRef}
+                  onClick={handleCanvasClick}
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasMouseUp}
+                  onMouseLeave={handleCanvasMouseUp}
+                  style={{
+                    display: 'block',
+                    maxWidth: '100%',
+                    height: 'auto',
+                    cursor: dragging ? 'grabbing' : selectedText ? 'grab' : 'crosshair',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    borderRadius: '8px'
+                  }}
+                />
+              </div>
             ) : (
               <div style={{ textAlign: 'center', color: '#999' }}>
-                <p style={{ fontSize: '24px', marginBottom: '10px' }}>📸</p>
-                <p style={{ fontSize: '18px' }}>Upload an image or select a template to get started</p>
+                <p style={{ fontSize: '48px', marginBottom: '10px' }}>📸</p>
+                <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>No image loaded</p>
+                <p style={{ fontSize: '14px' }}>Upload an image or select a template to get started</p>
               </div>
             )}
           </div>
